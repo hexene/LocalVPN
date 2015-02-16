@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Local VPN</string>
+    <string name="start_vpn">Start VPN</string>
+    <string name="stop_vpn">Stop from Notification Bar</string>
+    <string name="action_settings">Settings</string>
+
+</resources>
