@@ -7,6 +7,7 @@ import android.os.ParcelFileDescriptor;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import java.io.Closeable;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -101,7 +102,6 @@ public class LocalVPNService extends VpnService
         super.onDestroy();
         isRunning = false;
         executorService.shutdownNow();
-        ByteBufferPool.clear();
         cleanup();
         Log.i(TAG, "Stopped");
     }
@@ -111,31 +111,23 @@ public class LocalVPNService extends VpnService
         deviceToNetworkTCPQueue = null;
         deviceToNetworkUDPQueue = null;
         networkToDeviceQueue = null;
-        // We could have used AutoCloseable for more concise code,
-        // but it's available only from API level 19
-        try
+        ByteBufferPool.clear();
+        closeResources(udpSelector, tcpSelector, vpnInterface);
+    }
+
+    // TODO: Move this to a "utils" class for reuse
+    private static void closeResources(Closeable... resources)
+    {
+        for (Closeable resource : resources)
         {
-            udpSelector.close();
-        }
-        catch (IOException e)
-        {
-            // Ignore
-        }
-        try
-        {
-            tcpSelector.close();
-        }
-        catch (IOException e)
-        {
-            // Ignore
-        }
-        try
-        {
-            vpnInterface.close();
-        }
-        catch (IOException e)
-        {
-            // Ignore
+            try
+            {
+                resource.close();
+            }
+            catch (IOException e)
+            {
+                // Ignore
+            }
         }
     }
 
@@ -164,11 +156,12 @@ public class LocalVPNService extends VpnService
         public void run()
         {
             Log.i(TAG, "Started");
+
+            FileChannel vpnInput = new FileInputStream(vpnFileDescriptor).getChannel();
+            FileChannel vpnOutput = new FileOutputStream(vpnFileDescriptor).getChannel();
+
             try
             {
-                FileChannel vpnInput = new FileInputStream(vpnFileDescriptor).getChannel();
-                FileChannel vpnOutput = new FileOutputStream(vpnFileDescriptor).getChannel();
-
                 ByteBuffer bufferToNetwork = null;
                 boolean dataSent = true;
                 boolean dataReceived;
@@ -223,6 +216,10 @@ public class LocalVPNService extends VpnService
             catch (IOException e)
             {
                 Log.w(TAG, e.toString(), e);
+            }
+            finally
+            {
+                closeResources(vpnInput, vpnOutput);
             }
         }
     }
