@@ -62,7 +62,10 @@ public class LocalVPNService extends VpnService
         }
         catch (IOException e)
         {
-            Log.e(TAG, e.toString(), e);
+            // TODO: Here and elsewhere, we should explicitly notify the user of any errors
+            // and suggest that they stop the service, since we can't do it ourselves
+            Log.e(TAG, "Error starting service");
+            cleanup();
         }
     }
 
@@ -95,16 +98,41 @@ public class LocalVPNService extends VpnService
         isRunning = false;
         executorService.shutdownNow();
         ByteBufferPool.clear();
+        cleanup();
+        Log.i(TAG, "Stopped");
+    }
+
+    private void cleanup()
+    {
+        deviceToNetworkTCPQueue = null;
+        deviceToNetworkUDPQueue = null;
+        networkToDeviceQueue = null;
+        // We could have used AutoCloseable for more concise code,
+        // but it's available only from API level 19
         try
         {
             udpSelector.close();
+        }
+        catch (IOException e)
+        {
+            // Ignore
+        }
+        try
+        {
+            tcpSelector.close();
+        }
+        catch (IOException e)
+        {
+            // Ignore
+        }
+        try
+        {
             vpnInterface.close();
         }
         catch (IOException e)
         {
-            //Ignore
+            // Ignore
         }
-        Log.i(TAG, "Stopped");
     }
 
     private static class VPNRunnable implements Runnable
@@ -184,7 +212,11 @@ public class LocalVPNService extends VpnService
                         Thread.sleep(10);
                 }
             }
-            catch (Exception/*|InterruptedException|IOException*/ e)
+            catch (InterruptedException e)
+            {
+                Log.i(TAG, "Stopping");
+            }
+            catch (IOException e)
             {
                 Log.w(TAG, e.toString(), e);
             }

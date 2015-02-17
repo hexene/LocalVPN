@@ -8,17 +8,28 @@ import java.net.InetSocketAddress;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class UDPOutput implements Runnable
 {
     private static final String TAG = UDPOutput.class.getSimpleName();
-    private static final int MAX_CACHE_SIZE = 50;
 
     private LocalVPNService vpnService;
     private ConcurrentLinkedQueue<Packet> inputQueue;
     private Selector selector;
+
+    private static final int MAX_CACHE_SIZE = 50;
+    private LRUCache<String, DatagramChannel> channelCache =
+            new LRUCache<>(MAX_CACHE_SIZE, new LRUCache.CleanupCallback<String, DatagramChannel>()
+            {
+                @Override
+                public void cleanup(Map.Entry<String, DatagramChannel> eldest)
+                {
+                    closeChannel(eldest.getValue());
+                }
+            });
 
     public UDPOutput(ConcurrentLinkedQueue<Packet> inputQueue, Selector selector, LocalVPNService vpnService)
     {
@@ -33,22 +44,6 @@ public class UDPOutput implements Runnable
         Log.i(TAG, "Started");
         try
         {
-            LRUCache<String, DatagramChannel> channelCache =
-                    new LRUCache<>(MAX_CACHE_SIZE, new LRUCache.CleanupCallback<String, DatagramChannel>()
-                    {
-                        @Override
-                        public void cleanup(Map.Entry<String, DatagramChannel> eldest)
-                        {
-                            try
-                            {
-                                eldest.getValue().close();
-                            }
-                            catch (IOException e)
-                            {
-                                // Ignore
-                            }
-                        }
-                    });
 
             Thread currentThread = Thread.currentThread();
             while (true)
@@ -103,14 +98,44 @@ public class UDPOutput implements Runnable
                 {
                     Log.e(TAG, "Network write error: " + ipAndPort);
                     channelCache.remove(ipAndPort);
-                    outputChannel.close();
+                    closeChannel(outputChannel);
                     continue;
                 }
             }
         }
-        catch (InterruptedException|IOException e)
+        catch (InterruptedException e)
+        {
+            Log.i(TAG, "Stopping");
+        }
+        catch (IOException e)
         {
             Log.i(TAG, e.toString(), e);
+        }
+        finally
+        {
+            closeAll();
+        }
+    }
+
+    private void closeAll()
+    {
+        Iterator<Map.Entry<String, DatagramChannel>> it = channelCache.entrySet().iterator();
+        while (it.hasNext())
+        {
+            closeChannel(it.next().getValue());
+            it.remove();
+        }
+    }
+
+    private void closeChannel(DatagramChannel channel)
+    {
+        try
+        {
+            channel.close();
+        }
+        catch (IOException e)
+        {
+            // Ignore
         }
     }
 }

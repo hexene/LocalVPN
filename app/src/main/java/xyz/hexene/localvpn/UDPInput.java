@@ -68,7 +68,11 @@ public class UDPInput implements Runnable
                 }
             }
         }
-        catch (InterruptedException|IOException e)
+        catch (InterruptedException e)
+        {
+            Log.i(TAG, "Stopping");
+        }
+        catch (IOException e)
         {
             Log.w(TAG, e.toString(), e);
         }

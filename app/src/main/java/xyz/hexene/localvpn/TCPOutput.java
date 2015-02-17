@@ -85,9 +85,17 @@ public class TCPOutput implements Runnable
                 ByteBufferPool.release(payloadBuffer);
             }
         }
-        catch (Exception e)
+        catch (InterruptedException e)
         {
-            Log.i(TAG, e.toString(), e);
+            Log.i(TAG, "Stopping");
+        }
+        catch (IOException e)
+        {
+            Log.e(TAG, e.toString(), e);
+        }
+        finally
+        {
+            TCB.closeAll();
         }
     }
 

@@ -104,7 +104,11 @@ public class TCPInput implements Runnable
                 }
             }
         }
-        catch (Exception/*InterruptedException|IOException*/ e)
+        catch (InterruptedException e)
+        {
+            Log.i(TAG, "Stopping");
+        }
+        catch (IOException e)
         {
             Log.w(TAG, e.toString(), e);
         }

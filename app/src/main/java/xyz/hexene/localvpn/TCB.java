@@ -3,6 +3,7 @@ package xyz.hexene.localvpn;
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -79,6 +80,19 @@ public class TCB
         synchronized (tcbCache)
         {
             tcbCache.remove(tcb.ipAndPort);
+        }
+    }
+
+    public static void closeAll()
+    {
+        synchronized (tcbCache)
+        {
+            Iterator<Map.Entry<String, TCB>> it = tcbCache.entrySet().iterator();
+            while (it.hasNext())
+            {
+                it.next().getValue().closeChannel();
+                it.remove();
+            }
         }
     }
 
