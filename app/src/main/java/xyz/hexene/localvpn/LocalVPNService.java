@@ -190,15 +190,22 @@ public class LocalVPNService extends VpnService
                     int readBytes = vpnInput.read(bufferToNetwork);
                     if (readBytes > 0)
                     {
+                        dataSent = true;
                         bufferToNetwork.flip();
                         Packet packet = new Packet(bufferToNetwork);
                         if (packet.isUDP())
+                        {
                             deviceToNetworkUDPQueue.offer(packet);
+                        }
                         else if (packet.isTCP())
+                        {
                             deviceToNetworkTCPQueue.offer(packet);
+                        }
                         else
+                        {
                             Log.w(TAG, "Unknown packet type");
-                        dataSent = true;
+                            dataSent = false;
+                        }
                     }
                     else
                     {
