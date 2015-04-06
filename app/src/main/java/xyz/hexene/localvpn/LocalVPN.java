@@ -91,14 +91,7 @@ public class LocalVPN extends ActionBarActivity
     protected void onResume() {
         super.onResume();
 
-        if (waitingForVPNStart || LocalVPNService.isRunning())
-        {
-            enableButton(false);
-        }
-        else
-        {
-            enableButton(true);
-        }
+        enableButton(!waitingForVPNStart && !LocalVPNService.isRunning());
     }
 
     private void enableButton(boolean enable)
