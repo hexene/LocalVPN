@@ -357,8 +357,11 @@ public class Packet
             this.urgentPointer = BitUtils.getUnsignedShort(buffer.getShort());
 
             int optionsLength = this.headerLength - TCP_HEADER_SIZE;
-            optionsAndPadding = new byte[optionsLength];
-            buffer.get(optionsAndPadding, 0, optionsLength);
+            if (optionsLength > 0)
+            {
+                optionsAndPadding = new byte[optionsLength];
+                buffer.get(optionsAndPadding, 0, optionsLength);
+            }
         }
 
         public boolean isFIN()
