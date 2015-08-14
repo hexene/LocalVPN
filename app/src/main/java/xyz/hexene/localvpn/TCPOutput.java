@@ -132,7 +132,7 @@ public class TCPOutput implements Runnable
             }
             catch (IOException e)
             {
-                Log.e(TAG, "Connection error: " + ipAndPort);
+                Log.e(TAG, "Connection error: " + ipAndPort, e);
             }
 
             if (connected)
@@ -224,7 +224,7 @@ public class TCPOutput implements Runnable
             }
             catch (IOException e)
             {
-                Log.e(TAG, "Network write error: " + tcb.ipAndPort);
+                Log.e(TAG, "Network write error: " + tcb.ipAndPort, e);
                 sendRST(tcb, payloadSize, responseBuffer);
                 return;
             }

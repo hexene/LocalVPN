@@ -92,7 +92,7 @@ public class UDPOutput implements Runnable
                     }
                     catch (IOException e)
                     {
-                        Log.e(TAG, "Connection error: " + ipAndPort);
+                        Log.e(TAG, "Connection error: " + ipAndPort, e);
                         outputChannel.close();
                         continue;
                     }
@@ -113,9 +113,9 @@ public class UDPOutput implements Runnable
                     while (payloadBuffer.hasRemaining())
                         outputChannel.write(payloadBuffer);
                 }
-                catch (Exception e)
+                catch (IOException e)
                 {
-                    Log.e(TAG, "Network write error: " + ipAndPort);
+                    Log.e(TAG, "Network write error: " + ipAndPort, e);
                     channelCache.remove(ipAndPort);
                     closeChannel(outputChannel);
                     continue;

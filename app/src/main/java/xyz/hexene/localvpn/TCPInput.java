@@ -83,7 +83,7 @@ public class TCPInput implements Runnable
                             }
                             catch (IOException e)
                             {
-                                Log.e(TAG, "Network read error: " + tcb.ipAndPort);
+                                Log.e(TAG, "Network read error: " + tcb.ipAndPort, e);
                                 referencePacket.updateTCPBuffer(receiveBuffer, (byte) Packet.TCPHeader.RST, 0, tcb.myAcknowledgementNum, 0);
                                 outputQueue.offer(receiveBuffer);
                                 TCB.closeTCB(tcb);

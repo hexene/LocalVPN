@@ -85,7 +85,7 @@ public class LocalVPNService extends VpnService
         {
             // TODO: Here and elsewhere, we should explicitly notify the user of any errors
             // and suggest that they stop the service, since we can't do it ourselves
-            Log.e(TAG, "Error starting service");
+            Log.e(TAG, "Error starting service", e);
             cleanup();
         }
     }
@@ -204,6 +204,7 @@ public class LocalVPNService extends VpnService
                         else
                         {
                             Log.w(TAG, "Unknown packet type");
+                            Log.w(TAG, packet.ip4Header.toString());
                             dataSent = false;
                         }
                     }

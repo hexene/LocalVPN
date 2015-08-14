@@ -221,6 +221,7 @@ public class Packet
         public int identificationAndFlagsAndFragmentOffset;
 
         public short TTL;
+        private short protocolNum;
         public TransportProtocol protocol;
         public int headerChecksum;
 
@@ -271,7 +272,8 @@ public class Packet
             this.identificationAndFlagsAndFragmentOffset = buffer.getInt();
 
             this.TTL = BitUtils.getUnsignedByte(buffer.get());
-            this.protocol = TransportProtocol.numberToEnum(BitUtils.getUnsignedByte(buffer.get()));
+            this.protocolNum = BitUtils.getUnsignedByte(buffer.get());
+            this.protocol = TransportProtocol.numberToEnum(protocolNum);
             this.headerChecksum = BitUtils.getUnsignedShort(buffer.getShort());
 
             byte[] addressBytes = new byte[4];
@@ -305,8 +307,12 @@ public class Packet
         {
             final StringBuilder sb = new StringBuilder("IP4Header{");
             sb.append("version=").append(version);
+            sb.append(", IHL=").append(IHL);
+            sb.append(", typeOfService=").append(typeOfService);
             sb.append(", totalLength=").append(totalLength);
-            sb.append(", protocol=").append(protocol);
+            sb.append(", identificationAndFlagsAndFragmentOffset=").append(identificationAndFlagsAndFragmentOffset);
+            sb.append(", TTL=").append(TTL);
+            sb.append(", protocol=").append(protocolNum).append(":").append(protocol);
             sb.append(", headerChecksum=").append(headerChecksum);
             sb.append(", sourceAddress=").append(sourceAddress.getHostAddress());
             sb.append(", destinationAddress=").append(destinationAddress.getHostAddress());
