@@ -216,7 +216,8 @@ public class LocalVPNService extends VpnService
                     if (bufferFromNetwork != null)
                     {
                         bufferFromNetwork.flip();
-                        vpnOutput.write(bufferFromNetwork);
+                        while (bufferFromNetwork.hasRemaining())
+                            vpnOutput.write(bufferFromNetwork);
                         dataReceived = true;
 
                         ByteBufferPool.release(bufferFromNetwork);

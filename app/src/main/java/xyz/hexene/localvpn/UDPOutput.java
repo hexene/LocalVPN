@@ -21,6 +21,7 @@ import android.util.Log;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -108,7 +109,9 @@ public class UDPOutput implements Runnable
 
                 try
                 {
-                    outputChannel.write(currentPacket.backingBuffer);
+                    ByteBuffer payloadBuffer = currentPacket.backingBuffer;
+                    while (payloadBuffer.hasRemaining())
+                        outputChannel.write(payloadBuffer);
                 }
                 catch (Exception e)
                 {
