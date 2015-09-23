@@ -128,10 +128,12 @@ public class TCPOutput implements Runnable
             boolean connected = false;
             try
             {
-                connected = outputChannel.connect(new InetSocketAddress(destinationAddress, destinationPort));
+                outputChannel.socket().connect(new InetSocketAddress(destinationAddress, destinationPort), 750);
+                connected = true;
             }
             catch (IOException e)
             {
+                connected = false;
                 Log.e(TAG, "Connection error: " + ipAndPort, e);
             }
 
