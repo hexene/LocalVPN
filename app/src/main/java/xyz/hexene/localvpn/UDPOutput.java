@@ -19,13 +19,19 @@ package xyz.hexene.localvpn;
 import android.util.Log;
 
 import java.io.IOException;
+import java.net.BindException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -86,6 +92,14 @@ public class UDPOutput implements Runnable
                 DatagramChannel outputChannel = channelCache.get(ipAndPort);
                 if (outputChannel == null) {
                     outputChannel = DatagramChannel.open();
+                    // Workaround for bug 64819 ( https://code.google.com/p/android/issues/detail?id=64819 )
+                    InetSocketAddress sa = new InetSocketAddress(getIPAddress(), sourcePort);
+                    try {
+                        outputChannel.socket().setReuseAddress(true);
+                        outputChannel.socket().bind(sa);
+                    } catch (BindException e) {
+                        Log.d(TAG, sa.toString() + " " + e.toString(), e);
+                    }
                     try
                     {
                         outputChannel.connect(new InetSocketAddress(destinationAddress, destinationPort));
@@ -157,5 +171,23 @@ public class UDPOutput implements Runnable
         {
             // Ignore
         }
+    }
+
+    //http://stackoverflow.com/questions/6064510/how-to-get-ip-address-of-the-device
+    private InetAddress getIPAddress() {
+        try {
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface intf : interfaces) {
+                List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+                for (InetAddress addr : addrs) {
+                    if (!addr.isLoopbackAddress() && addr instanceof Inet4Address) {
+                        return addr;
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
