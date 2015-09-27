@@ -93,7 +93,8 @@ public class UDPOutput implements Runnable
                     catch (IOException e)
                     {
                         Log.e(TAG, "Connection error: " + ipAndPort, e);
-                        outputChannel.close();
+                        closeChannel(outputChannel);
+                        ByteBufferPool.release(currentPacket.backingBuffer);
                         continue;
                     }
                     outputChannel.configureBlocking(false);
@@ -118,8 +119,8 @@ public class UDPOutput implements Runnable
                     Log.e(TAG, "Network write error: " + ipAndPort, e);
                     channelCache.remove(ipAndPort);
                     closeChannel(outputChannel);
-                    continue;
                 }
+                ByteBufferPool.release(currentPacket.backingBuffer);
             }
         }
         catch (InterruptedException e)
