@@ -185,6 +185,8 @@ public class LocalVPNService extends VpnService
                 {
                     if (dataSent)
                         bufferToNetwork = ByteBufferPool.acquire();
+                    else
+                        bufferToNetwork.clear();
 
                     // TODO: Block when not connected
                     int readBytes = vpnInput.read(bufferToNetwork);
