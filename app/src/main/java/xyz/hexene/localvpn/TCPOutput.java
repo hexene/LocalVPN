@@ -129,7 +129,7 @@ public class TCPOutput implements Runnable
             outputChannel.configureBlocking(false);
             vpnService.protect(outputChannel.socket());
 
-            TCB tcb = new TCB(ipAndPort, random.nextLong(), tcpHeader.sequenceNumber, tcpHeader.sequenceNumber + 1,
+            TCB tcb = new TCB(ipAndPort, random.nextInt(Short.MAX_VALUE + 1), tcpHeader.sequenceNumber, tcpHeader.sequenceNumber + 1,
                     tcpHeader.acknowledgementNumber, outputChannel, currentPacket);
             TCB.putTCB(ipAndPort, tcb);
 
