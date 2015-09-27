@@ -64,58 +64,10 @@ public class TCPInput implements Runnable
                 while (keyIterator.hasNext() && !Thread.interrupted())
                 {
                     SelectionKey key = keyIterator.next();
-                    if (key.isValid() && key.isReadable())
+                    if (key.isValid())
                     {
-                        keyIterator.remove();
-                        ByteBuffer receiveBuffer = ByteBufferPool.acquire();
-                        // Leave space for the header
-                        receiveBuffer.position(HEADER_SIZE);
-
-                        TCB tcb = (TCB) key.attachment();
-                        synchronized (tcb)
-                        {
-                            Packet referencePacket = tcb.referencePacket;
-                            SocketChannel inputChannel = (SocketChannel) key.channel();
-                            int readBytes;
-                            try
-                            {
-                                readBytes = inputChannel.read(receiveBuffer);
-                            }
-                            catch (IOException e)
-                            {
-                                Log.e(TAG, "Network read error: " + tcb.ipAndPort, e);
-                                referencePacket.updateTCPBuffer(receiveBuffer, (byte) Packet.TCPHeader.RST, 0, tcb.myAcknowledgementNum, 0);
-                                outputQueue.offer(receiveBuffer);
-                                TCB.closeTCB(tcb);
-                                continue;
-                            }
-
-                            if (readBytes == -1)
-                            {
-                                // End of stream, stop waiting until we push more data
-                                key.interestOps(0);
-                                tcb.waitingForNetworkData = false;
-
-                                if (tcb.status != TCBStatus.CLOSE_WAIT)
-                                {
-                                    ByteBufferPool.release(receiveBuffer);
-                                    continue;
-                                }
-
-                                tcb.status = TCBStatus.LAST_ACK;
-                                referencePacket.updateTCPBuffer(receiveBuffer, (byte) Packet.TCPHeader.FIN, tcb.mySequenceNum, tcb.myAcknowledgementNum, 0);
-                                tcb.mySequenceNum++; // FIN counts as a byte
-                            }
-                            else
-                            {
-                                // XXX: We should ideally be splitting segments by MTU/MSS, but this seems to work without
-                                referencePacket.updateTCPBuffer(receiveBuffer, (byte) (Packet.TCPHeader.PSH | Packet.TCPHeader.ACK),
-                                        tcb.mySequenceNum, tcb.myAcknowledgementNum, readBytes);
-                                tcb.mySequenceNum += readBytes; // Next sequence number
-                                receiveBuffer.position(HEADER_SIZE + readBytes);
-                            }
-                        }
-                        outputQueue.offer(receiveBuffer);
+                        if (key.isReadable())
+                            processInput(key, keyIterator);
                     }
                 }
             }
@@ -128,5 +80,59 @@ public class TCPInput implements Runnable
         {
             Log.w(TAG, e.toString(), e);
         }
+    }
+
+    private void processInput(SelectionKey key, Iterator<SelectionKey> keyIterator)
+    {
+        keyIterator.remove();
+        ByteBuffer receiveBuffer = ByteBufferPool.acquire();
+        // Leave space for the header
+        receiveBuffer.position(HEADER_SIZE);
+
+        TCB tcb = (TCB) key.attachment();
+        synchronized (tcb)
+        {
+            Packet referencePacket = tcb.referencePacket;
+            SocketChannel inputChannel = (SocketChannel) key.channel();
+            int readBytes;
+            try
+            {
+                readBytes = inputChannel.read(receiveBuffer);
+            }
+            catch (IOException e)
+            {
+                Log.e(TAG, "Network read error: " + tcb.ipAndPort, e);
+                referencePacket.updateTCPBuffer(receiveBuffer, (byte) Packet.TCPHeader.RST, 0, tcb.myAcknowledgementNum, 0);
+                outputQueue.offer(receiveBuffer);
+                TCB.closeTCB(tcb);
+                return;
+            }
+
+            if (readBytes == -1)
+            {
+                // End of stream, stop waiting until we push more data
+                key.interestOps(0);
+                tcb.waitingForNetworkData = false;
+
+                if (tcb.status != TCBStatus.CLOSE_WAIT)
+                {
+                    ByteBufferPool.release(receiveBuffer);
+                    return;
+                }
+
+                tcb.status = TCBStatus.LAST_ACK;
+                referencePacket.updateTCPBuffer(receiveBuffer, (byte) Packet.TCPHeader.FIN, tcb.mySequenceNum, tcb.myAcknowledgementNum, 0);
+                tcb.mySequenceNum++; // FIN counts as a byte
+            }
+            else
+            {
+                // XXX: We should ideally be splitting segments by MTU/MSS, but this seems to work without
+                referencePacket.updateTCPBuffer(receiveBuffer, (byte) (Packet.TCPHeader.PSH | Packet.TCPHeader.ACK),
+                        tcb.mySequenceNum, tcb.myAcknowledgementNum, readBytes);
+                tcb.mySequenceNum += readBytes; // Next sequence number
+                receiveBuffer.position(HEADER_SIZE + readBytes);
+            }
+        }
+        outputQueue.offer(receiveBuffer);
     }
 }
