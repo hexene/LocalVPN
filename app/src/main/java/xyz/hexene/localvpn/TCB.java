@@ -36,6 +36,7 @@ public class TCB
     // TCP has more states, but we need only these
     public enum TCBStatus
     {
+        SYN_SENT,
         SYN_RECEIVED,
         ESTABLISHED,
         CLOSE_WAIT,
@@ -87,7 +88,6 @@ public class TCB
 
         this.channel = channel;
         this.referencePacket = referencePacket;
-        this.status = TCBStatus.SYN_RECEIVED;
     }
 
     public static void closeTCB(TCB tcb)

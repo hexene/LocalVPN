@@ -90,7 +90,7 @@ public class TCPOutput implements Runnable
                     initializeConnection(ipAndPort, destinationAddress, destinationPort,
                             currentPacket, tcpHeader, responseBuffer);
                 else if (tcpHeader.isSYN())
-                    sendRST(tcb, 1, responseBuffer);
+                    processDuplicateSYN(tcb, tcpHeader, responseBuffer);
                 else if (tcpHeader.isRST())
                     closeCleanly(tcb, responseBuffer);
                 else if (tcpHeader.isFIN())
@@ -98,6 +98,9 @@ public class TCPOutput implements Runnable
                 else if (tcpHeader.isACK())
                     processACK(tcb, tcpHeader, payloadBuffer, responseBuffer);
 
+                // XXX: cleanup later
+                if (responseBuffer.position() == 0)
+                    ByteBufferPool.release(responseBuffer);
                 ByteBufferPool.release(payloadBuffer);
             }
         }
@@ -123,35 +126,37 @@ public class TCPOutput implements Runnable
         if (tcpHeader.isSYN())
         {
             SocketChannel outputChannel = SocketChannel.open();
+            outputChannel.configureBlocking(false);
             vpnService.protect(outputChannel.socket());
 
-            boolean connected = false;
+            TCB tcb = new TCB(ipAndPort, random.nextLong(), tcpHeader.sequenceNumber, tcpHeader.sequenceNumber + 1,
+                    tcpHeader.acknowledgementNumber, outputChannel, currentPacket);
+            TCB.putTCB(ipAndPort, tcb);
+
             try
             {
-                connected = outputChannel.connect(new InetSocketAddress(destinationAddress, destinationPort));
+                outputChannel.connect(new InetSocketAddress(destinationAddress, destinationPort));
+                if (outputChannel.finishConnect())
+                {
+                    tcb.status = TCBStatus.SYN_RECEIVED;
+                    // TODO: Set MSS for receiving larger packets from the device
+                    currentPacket.updateTCPBuffer(responseBuffer, (byte) (TCPHeader.SYN | TCPHeader.ACK),
+                            tcb.mySequenceNum, tcb.myAcknowledgementNum, 0);
+                    tcb.mySequenceNum++; // SYN counts as a byte
+                }
+                else
+                {
+                    tcb.status = TCBStatus.SYN_SENT;
+                    selector.wakeup();
+                    tcb.selectionKey = outputChannel.register(selector, SelectionKey.OP_CONNECT, tcb);
+                    return;
+                }
             }
             catch (IOException e)
             {
                 Log.e(TAG, "Connection error: " + ipAndPort, e);
-            }
-
-            if (connected)
-            {
-                TCB tcb = new TCB(ipAndPort, random.nextLong(), tcpHeader.sequenceNumber, tcpHeader.sequenceNumber + 1,
-                        tcpHeader.acknowledgementNumber, outputChannel, currentPacket);
-                TCB.putTCB(ipAndPort, tcb);
-                // TODO: Set MSS for receiving larger packets from the device
-                currentPacket.updateTCPBuffer(responseBuffer, (byte) (TCPHeader.SYN | TCPHeader.ACK),
-                        tcb.mySequenceNum, tcb.myAcknowledgementNum, 0);
-                tcb.mySequenceNum++; // SYN counts as a byte
-
-                outputChannel.configureBlocking(false);
-            }
-            else
-            {
-                currentPacket.updateTCPBuffer(responseBuffer, (byte) TCPHeader.RST,
-                        0, tcpHeader.sequenceNumber + 1, 0);
-                outputChannel.close();
+                currentPacket.updateTCPBuffer(responseBuffer, (byte) TCPHeader.RST, 0, tcb.myAcknowledgementNum, 0);
+                TCB.closeTCB(tcb);
             }
         }
         else
@@ -160,6 +165,19 @@ public class TCPOutput implements Runnable
                     0, tcpHeader.sequenceNumber + 1, 0);
         }
         outputQueue.offer(responseBuffer);
+    }
+
+    private void processDuplicateSYN(TCB tcb, TCPHeader tcpHeader, ByteBuffer responseBuffer)
+    {
+        synchronized (tcb)
+        {
+            if (tcb.status == TCBStatus.SYN_SENT)
+            {
+                tcb.myAcknowledgementNum = tcpHeader.sequenceNumber + 1;
+                return;
+            }
+        }
+        sendRST(tcb, 1, responseBuffer);
     }
 
     private void processFIN(TCB tcb, TCPHeader tcpHeader, ByteBuffer responseBuffer)
@@ -212,6 +230,7 @@ public class TCPOutput implements Runnable
 
             if (!tcb.waitingForNetworkData)
             {
+                selector.wakeup();
                 tcb.selectionKey.interestOps(SelectionKey.OP_READ);
                 tcb.waitingForNetworkData = true;
             }

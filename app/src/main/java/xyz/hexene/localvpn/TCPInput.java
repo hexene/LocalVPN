@@ -66,7 +66,9 @@ public class TCPInput implements Runnable
                     SelectionKey key = keyIterator.next();
                     if (key.isValid())
                     {
-                        if (key.isReadable())
+                        if (key.isConnectable())
+                            processConnect(key, keyIterator);
+                        else if (key.isReadable())
                             processInput(key, keyIterator);
                     }
                 }
@@ -79,6 +81,37 @@ public class TCPInput implements Runnable
         catch (IOException e)
         {
             Log.w(TAG, e.toString(), e);
+        }
+    }
+
+    private void processConnect(SelectionKey key, Iterator<SelectionKey> keyIterator)
+    {
+        TCB tcb = (TCB) key.attachment();
+        Packet referencePacket = tcb.referencePacket;
+        try
+        {
+            if (tcb.channel.finishConnect())
+            {
+                keyIterator.remove();
+                tcb.status = TCBStatus.SYN_RECEIVED;
+
+                // TODO: Set MSS for receiving larger packets from the device
+                ByteBuffer responseBuffer = ByteBufferPool.acquire();
+                referencePacket.updateTCPBuffer(responseBuffer, (byte) (Packet.TCPHeader.SYN | Packet.TCPHeader.ACK),
+                        tcb.mySequenceNum, tcb.myAcknowledgementNum, 0);
+                outputQueue.offer(responseBuffer);
+
+                tcb.mySequenceNum++; // SYN counts as a byte
+                key.interestOps(SelectionKey.OP_READ);
+            }
+        }
+        catch (IOException e)
+        {
+            Log.e(TAG, "Connection error: " + tcb.ipAndPort, e);
+            ByteBuffer responseBuffer = ByteBufferPool.acquire();
+            referencePacket.updateTCPBuffer(responseBuffer, (byte) Packet.TCPHeader.RST, 0, tcb.myAcknowledgementNum, 0);
+            outputQueue.offer(responseBuffer);
+            TCB.closeTCB(tcb);
         }
     }
 
