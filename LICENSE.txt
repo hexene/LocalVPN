@@ -1,8 +1,12 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 				Apache License
 =======
 pache License
 >>>>>>> 3d2d84f... Added a license file.
+=======
+				Apache License
+>>>>>>> eed74ce... Added missing license title
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
