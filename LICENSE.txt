@@ -1,12 +1,18 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 6050300826d8086adb9a7b70bb9f61b1c2169df2
 				Apache License
 =======
 pache License
 >>>>>>> 3d2d84f... Added a license file.
+<<<<<<< HEAD
 =======
 				Apache License
 >>>>>>> eed74ce... Added missing license title
+=======
+>>>>>>> 6050300826d8086adb9a7b70bb9f61b1c2169df2
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
