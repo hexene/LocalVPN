@@ -73,7 +73,12 @@ public class UDPInput implements Runnable
                         DatagramChannel inputChannel = (DatagramChannel) key.channel();
                         // XXX: We should handle any IOExceptions here immediately,
                         // but that probably won't happen with UDP
-                        int readBytes = inputChannel.read(receiveBuffer);
+                        int readBytes=0;
+                        try {
+                            readBytes = inputChannel.read(receiveBuffer);
+                        }catch (Exception e){
+                            Log.e(TAG, "Network read error", e);
+                        }
 
                         Packet referencePacket = (Packet) key.attachment();
                         referencePacket.updateUDPBuffer(receiveBuffer, readBytes);
