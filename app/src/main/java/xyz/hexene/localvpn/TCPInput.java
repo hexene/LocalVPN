@@ -26,6 +26,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 import xyz.hexene.localvpn.TCB.TCBStatus;
 
@@ -36,11 +37,13 @@ public class TCPInput implements Runnable
 
     private ConcurrentLinkedQueue<ByteBuffer> outputQueue;
     private Selector selector;
+    private ReentrantLock tcpSelectorLock;
 
-    public TCPInput(ConcurrentLinkedQueue<ByteBuffer> outputQueue, Selector selector)
+    public TCPInput(ConcurrentLinkedQueue<ByteBuffer> outputQueue, Selector selector,ReentrantLock tcpSelectorLock)
     {
         this.outputQueue = outputQueue;
         this.selector = selector;
+        this.tcpSelectorLock=tcpSelectorLock;
     }
 
     @Override
@@ -57,8 +60,9 @@ public class TCPInput implements Runnable
                     Thread.sleep(10);
                     continue;
                 }
-
+                tcpSelectorLock.lock();
                 Set<SelectionKey> keys = selector.selectedKeys();
+                tcpSelectorLock.unlock();
                 Iterator<SelectionKey> keyIterator = keys.iterator();
 
                 while (keyIterator.hasNext() && !Thread.interrupted())

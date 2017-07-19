@@ -26,6 +26,7 @@ import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class UDPInput implements Runnable
 {
@@ -33,14 +34,15 @@ public class UDPInput implements Runnable
     private static final int HEADER_SIZE = Packet.IP4_HEADER_SIZE + Packet.UDP_HEADER_SIZE;
 
     private Selector selector;
+    private ReentrantLock udpSelectorLock;
     private ConcurrentLinkedQueue<ByteBuffer> outputQueue;
 
-    public UDPInput(ConcurrentLinkedQueue<ByteBuffer> outputQueue, Selector selector)
+    public UDPInput(ConcurrentLinkedQueue<ByteBuffer> outputQueue, Selector selector, ReentrantLock udpSelectorLock)
     {
         this.outputQueue = outputQueue;
         this.selector = selector;
+        this.udpSelectorLock=udpSelectorLock;
     }
-
     @Override
     public void run()
     {
@@ -55,8 +57,9 @@ public class UDPInput implements Runnable
                     Thread.sleep(10);
                     continue;
                 }
-
+                udpSelectorLock.lock();
                 Set<SelectionKey> keys = selector.selectedKeys();
+                udpSelectorLock.unlock();
                 Iterator<SelectionKey> keyIterator = keys.iterator();
 
                 while (keyIterator.hasNext() && !Thread.interrupted())

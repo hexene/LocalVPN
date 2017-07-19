@@ -34,6 +34,7 @@ import java.nio.channels.Selector;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class LocalVPNService extends VpnService
 {
@@ -56,6 +57,8 @@ public class LocalVPNService extends VpnService
 
     private Selector udpSelector;
     private Selector tcpSelector;
+    private ReentrantLock udpSelectorLock;
+    private ReentrantLock tcpSelectorLock;
 
     @Override
     public void onCreate()
@@ -70,15 +73,16 @@ public class LocalVPNService extends VpnService
             deviceToNetworkUDPQueue = new ConcurrentLinkedQueue<>();
             deviceToNetworkTCPQueue = new ConcurrentLinkedQueue<>();
             networkToDeviceQueue = new ConcurrentLinkedQueue<>();
-
+            udpSelectorLock=new ReentrantLock();
+            tcpSelectorLock=new ReentrantLock();
             executorService = Executors.newFixedThreadPool(5);
-            executorService.submit(new UDPInput(networkToDeviceQueue, udpSelector));
-            executorService.submit(new UDPOutput(deviceToNetworkUDPQueue, udpSelector, this));
-            executorService.submit(new TCPInput(networkToDeviceQueue, tcpSelector));
-            executorService.submit(new TCPOutput(deviceToNetworkTCPQueue, networkToDeviceQueue, tcpSelector, this));
+            executorService.submit(new UDPInput(networkToDeviceQueue, udpSelector, udpSelectorLock));
+            executorService.submit(new UDPOutput(deviceToNetworkUDPQueue, networkToDeviceQueue, udpSelector,udpSelectorLock, this));
+            executorService.submit(new TCPInput(networkToDeviceQueue, tcpSelector,tcpSelectorLock));
+            executorService.submit(new TCPOutput(deviceToNetworkTCPQueue, networkToDeviceQueue, tcpSelector,tcpSelectorLock, this));
             executorService.submit(new VPNRunnable(vpnInterface.getFileDescriptor(),
                     deviceToNetworkUDPQueue, deviceToNetworkTCPQueue, networkToDeviceQueue));
-            LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(BROADCAST_VPN_STATE).putExtra("running", true));
+          LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(BROADCAST_VPN_STATE).putExtra("running", true));
             Log.i(TAG, "Started");
         }
         catch (IOException e)

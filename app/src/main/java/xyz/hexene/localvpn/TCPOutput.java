@@ -27,6 +27,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 import xyz.hexene.localvpn.Packet.TCPHeader;
 import xyz.hexene.localvpn.TCB.TCBStatus;
@@ -39,15 +40,17 @@ public class TCPOutput implements Runnable
     private ConcurrentLinkedQueue<Packet> inputQueue;
     private ConcurrentLinkedQueue<ByteBuffer> outputQueue;
     private Selector selector;
+    private ReentrantLock tcpSelectorLock;
 
     private Random random = new Random();
     public TCPOutput(ConcurrentLinkedQueue<Packet> inputQueue, ConcurrentLinkedQueue<ByteBuffer> outputQueue,
-                     Selector selector, LocalVPNService vpnService)
+                     Selector selector,ReentrantLock tcpSelectorLock, LocalVPNService vpnService)
     {
         this.inputQueue = inputQueue;
         this.outputQueue = outputQueue;
         this.selector = selector;
         this.vpnService = vpnService;
+        this.tcpSelectorLock=tcpSelectorLock;
     }
 
     @Override
@@ -147,8 +150,10 @@ public class TCPOutput implements Runnable
                 else
                 {
                     tcb.status = TCBStatus.SYN_SENT;
+                    tcpSelectorLock.lock();
                     selector.wakeup();
                     tcb.selectionKey = outputChannel.register(selector, SelectionKey.OP_CONNECT, tcb);
+                    tcpSelectorLock.unlock();
                     return;
                 }
             }
@@ -215,9 +220,10 @@ public class TCPOutput implements Runnable
             if (tcb.status == TCBStatus.SYN_RECEIVED)
             {
                 tcb.status = TCBStatus.ESTABLISHED;
-
+                tcpSelectorLock.lock();
                 selector.wakeup();
                 tcb.selectionKey = outputChannel.register(selector, SelectionKey.OP_READ, tcb);
+                tcpSelectorLock.unlock();
                 tcb.waitingForNetworkData = true;
             }
             else if (tcb.status == TCBStatus.LAST_ACK)
