@@ -28,6 +28,7 @@ import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class UDPOutput implements Runnable
 {
@@ -35,7 +36,10 @@ public class UDPOutput implements Runnable
 
     private LocalVPNService vpnService;
     private ConcurrentLinkedQueue<Packet> inputQueue;
+    private ConcurrentLinkedQueue<ByteBuffer> outputQueue;
     private Selector selector;
+    private ReentrantLock udpSelectorLock;
+
 
     private static final int MAX_CACHE_SIZE = 50;
     private LRUCache<String, DatagramChannel> channelCache =
@@ -48,11 +52,13 @@ public class UDPOutput implements Runnable
                 }
             });
 
-    public UDPOutput(ConcurrentLinkedQueue<Packet> inputQueue, Selector selector, LocalVPNService vpnService)
+    public UDPOutput(ConcurrentLinkedQueue<Packet> inputQueue,ConcurrentLinkedQueue<ByteBuffer> outputQueue, Selector selector,ReentrantLock udpSelectorLock, LocalVPNService vpnService)
     {
         this.inputQueue = inputQueue;
         this.selector = selector;
         this.vpnService = vpnService;
+        this.outputQueue=outputQueue;
+        this.udpSelectorLock=udpSelectorLock;
     }
 
     @Override
@@ -86,6 +92,7 @@ public class UDPOutput implements Runnable
                 DatagramChannel outputChannel = channelCache.get(ipAndPort);
                 if (outputChannel == null) {
                     outputChannel = DatagramChannel.open();
+                    vpnService.protect(outputChannel.socket());
                     try
                     {
                         outputChannel.connect(new InetSocketAddress(destinationAddress, destinationPort));
@@ -99,11 +106,11 @@ public class UDPOutput implements Runnable
                     }
                     outputChannel.configureBlocking(false);
                     currentPacket.swapSourceAndDestination();
-
+                    udpSelectorLock.lock();
                     selector.wakeup();
+                    udpSelectorLock.unlock();
                     outputChannel.register(selector, SelectionKey.OP_READ, currentPacket);
 
-                    vpnService.protect(outputChannel.socket());
 
                     channelCache.put(ipAndPort, outputChannel);
                 }
