@@ -14,7 +14,7 @@
 ** limitations under the License.
 */
 
-package xyz.hexene.localvpn;
+package com.ericsson.extendedvpn;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;

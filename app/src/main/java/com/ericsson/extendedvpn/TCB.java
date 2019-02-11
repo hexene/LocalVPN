@@ -14,7 +14,7 @@
 ** limitations under the License.
 */
 
-package xyz.hexene.localvpn;
+package com.ericsson.extendedvpn;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
