@@ -5,7 +5,7 @@ android {
     buildToolsVersion '28.0.3'
 
     defaultConfig {
-        applicationId "com.ericsson.localvpn"
+        applicationId "com.ericsson.vpnexample"
         minSdkVersion 21
         targetSdkVersion 28
         versionCode 1
@@ -21,6 +21,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation project(":extendedvpn")
+    api project(":extendedvpn")
     implementation 'com.android.support:appcompat-v7:28.0.0'
+    implementation 'com.android.support:support-v4:28.0.0'
 }
