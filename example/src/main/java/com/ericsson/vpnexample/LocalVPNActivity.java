@@ -37,6 +37,9 @@ import com.ericsson.extendedvpn.VPNConfig;
 import com.ericsson.extendedvpn.VPNPacketListener;
 import com.ericsson.extendedvpn.VPNServiceBinder;
 
+import java.util.Arrays;
+import java.util.List;
+
 
 public class LocalVPNActivity extends AppCompatActivity implements VPNPacketListener {
     private static final int VPN_REQUEST_CODE = 0x0F;
@@ -106,7 +109,8 @@ public class LocalVPNActivity extends AppCompatActivity implements VPNPacketList
             waitingForVPNStart = true;
 //            startService(new Intent(this, LocalVPNService.class));
             VPNConfig.setDnsServerAddress("8.8.8.8");
-            //VPNConfig.setFilteredPackageNames(new ArrayList<>(Collections.singletonList("com.ericsson.mbbmeasurement")));
+            List<String> packagesNames = Arrays.asList("com.google.android.youtube", "com.facebook.kataka");
+            VPNConfig.setFilteredPackageNames(packagesNames);
             Intent vpnIntent = new Intent(this, LocalVPNService.class);
             boolean result = this.bindService(vpnIntent, (serviceConnection == null)
                     ? serviceConnection = new VPNServiceConnection()
