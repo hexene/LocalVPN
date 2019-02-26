@@ -133,6 +133,12 @@ public class LocalVPNService extends VpnService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        String cmd = intent.getStringExtra("cmd");
+        String testApp = intent.getStringExtra("testApp");
+        if (cmd != null && cmd.contains("stop")) {
+            onDestroy();
+            stopService(new Intent(this, LocalVPNService.class));
+        }
         return START_STICKY;
     }
 

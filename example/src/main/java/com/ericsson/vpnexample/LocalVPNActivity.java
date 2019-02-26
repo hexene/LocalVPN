@@ -17,24 +17,34 @@
 package com.ericsson.vpnexample;
 
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.net.VpnService;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
 import com.ericsson.extendedvpn.LocalVPNService;
 import com.ericsson.extendedvpn.R;
+import com.ericsson.extendedvpn.VPNConfig;
+import com.ericsson.extendedvpn.VPNPacketListener;
+import com.ericsson.extendedvpn.VPNServiceBinder;
 
 
-public class LocalVPN extends AppCompatActivity {
+public class LocalVPNActivity extends AppCompatActivity implements VPNPacketListener {
     private static final int VPN_REQUEST_CODE = 0x0F;
 
     private boolean waitingForVPNStart;
+
+    private static VPNServiceBinder serviceBinder;
+    private static VPNServiceConnection serviceConnection;
 
     private BroadcastReceiver vpnStateReceiver = new BroadcastReceiver() {
         @Override
@@ -45,6 +55,25 @@ public class LocalVPN extends AppCompatActivity {
             }
         }
     };
+
+
+    private class VPNServiceConnection implements ServiceConnection {
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            Log.d("ServiceConnection", "connected");
+            serviceBinder = (VPNServiceBinder) service;
+            serviceBinder.subscribeVPNPacketListener(LocalVPNActivity.this);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            Log.d("ServiceConnection", "disconnected");
+            if (serviceBinder != null) {
+                serviceBinder.unsubscribeVPNPacketListener(LocalVPNActivity.this);
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,7 +104,13 @@ public class LocalVPN extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == VPN_REQUEST_CODE && resultCode == RESULT_OK) {
             waitingForVPNStart = true;
-            startService(new Intent(this, LocalVPNService.class));
+//            startService(new Intent(this, LocalVPNService.class));
+            VPNConfig.setDnsServerAddress("8.8.8.8");
+            //VPNConfig.setFilteredPackageNames(new ArrayList<>(Collections.singletonList("com.ericsson.mbbmeasurement")));
+            Intent vpnIntent = new Intent(this, LocalVPNService.class);
+            boolean result = this.bindService(vpnIntent, (serviceConnection == null)
+                    ? serviceConnection = new VPNServiceConnection()
+                    : serviceConnection, Context.BIND_AUTO_CREATE);
             enableButton(false);
         }
     }
@@ -96,5 +131,20 @@ public class LocalVPN extends AppCompatActivity {
             vpnButton.setEnabled(false);
             vpnButton.setText(R.string.stop_vpn);
         }
+    }
+
+    @Override
+    public void onVPNPacketReceived(byte[] packet) {
+        Log.d("LocalVPN", "Packet received");
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (LocalVPNService.isRunning()) {
+            Intent stopIntent = new Intent(this, LocalVPNService.class);
+            stopIntent.putExtra("cmd", "stop");
+            this.startService(stopIntent);
+        }
+        super.onDestroy();
     }
 }
